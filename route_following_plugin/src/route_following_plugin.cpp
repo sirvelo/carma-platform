@@ -21,6 +21,7 @@
 #include "route_following_plugin.h"
 #include <lanelet2_core/geometry/Lanelet.h>
 #include <lanelet2_core/geometry/BoundingBox.h>
+#include <lanelet2_extension/regulatory_elements/DigitalSpeedLimit.h>
 
 namespace route_following_plugin
 {
@@ -98,19 +99,20 @@ namespace route_following_plugin
         }
         double current_progress = wm_->routeTrackPos(current_loc).downtrack;
         double speed_progress = current_speed_;
-        double total_maneuver_length = current_progress + mvr_duration_ * RouteFollowingPlugin::FIFTEEN_MPH_IN_MS;
+        double target_speed=findSpeedLimit(current_lanelet);
+        double total_maneuver_length = current_progress + mvr_duration_ * target_speed;
         
         while(current_progress < total_maneuver_length && last_lanelet_index < shortest_path.size())
         {
-            ROS_ERROR_STREAM("Lanlet: " << shortest_path[last_lanelet_index].id());
+            ROS_DEBUG_STREAM("Lanlet: " << shortest_path[last_lanelet_index].id());
             auto p = shortest_path[last_lanelet_index].centerline2d().back();
-            ROS_ERROR_STREAM("EndPoint: " << p.x() << ", " << p.y());
+            ROS_DEBUG_STREAM("EndPoint: " << p.x() << ", " << p.y());
             double end_dist = wm_->routeTrackPos(shortest_path[last_lanelet_index].centerline2d().back()).downtrack;
             double dist_diff = end_dist - current_progress;
 
-            ROS_ERROR_STREAM("end_dist: " << end_dist);
-            ROS_ERROR_STREAM("current_progress: " << current_progress);
-            ROS_ERROR_STREAM("dist_diff: " << current_progress);
+            ROS_DEBUG_STREAM("end_dist: " << end_dist);
+            ROS_DEBUG_STREAM("current_progress: " << current_progress);
+            ROS_DEBUG_STREAM("dist_diff: " << current_progress);
 
             resp.new_plan.maneuvers.push_back(
                 composeManeuverMessage(current_progress, end_dist, 
@@ -118,7 +120,11 @@ namespace route_following_plugin
                                        shortest_path[last_lanelet_index].id(), ros::Time::now()));
 
             current_progress += dist_diff;
-            speed_progress = RouteFollowingPlugin::FIFTEEN_MPH_IN_MS;
+            speed_progress = target_speed;
+            //find target speed
+            current_lanelet=shortest_path[last_lanelet_index];
+            target_speed=findSpeedLimit(current_lanelet);
+            
             if(current_progress >= total_maneuver_length || last_lanelet_index == shortest_path.size() - 1)
             {
                 break;
@@ -203,6 +209,24 @@ namespace route_following_plugin
             }
         }
         return false;
+    }
+
+    double RouteFollowingPlugin::findSpeedLimit(const lanelet::ConstLanelet& llt)
+    {
+        //compare compare speed limit, config limit and hardcoded_max_speed
+        double speed_limit_,config_speed, hard_coded_max_speed;
+        //get digital speed limit
+        lanelet::DigitalSpeedLimitConstPtr digispeed_ptr=llt.regulatoryElementsAs<lanelet::DigitalSpeedLimit>()[0];
+        double digispeed_limit=digispeed_ptr->getSpeedLimit().value();
+        //get config speed limit
+        lanelet::Optional <carma_wm::TrafficRulesConstPtr> traffic_rules=wm_->getTrafficRules();
+        if(traffic_rules) config_speed=(*traffic_rules)->speedLimit(llt).speedLimit.value();
+        //hardcoded max speed
+        hard_coded_max_speed=37.7632;
+        speed_limit_=std::min(digispeed_limit,config_speed);
+        speed_limit_=std::min(speed_limit_,hard_coded_max_speed);
+        
+        return speed_limit_;
     }
 
 }

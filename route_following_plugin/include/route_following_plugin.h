@@ -76,6 +76,8 @@ namespace route_following_plugin
          */
         bool identifyLaneChange(lanelet::routing::LaneletRelations relations, int target_id);
 
+       double findSpeedLimit(const lanelet::ConstLanelet& llt);
+
     private:
 
         // CARMA ROS node handles
