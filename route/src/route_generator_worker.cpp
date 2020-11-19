@@ -313,12 +313,12 @@ namespace route {
             {
                 ROS_ERROR_STREAM("Failed to set the current speed limit. Valid traffic rules object could not be built.");
             }
-            //Check digital speed limit
+            /*//Check digital speed limit
             //use current location to find current lanelet and it's digital speed limit
             lanelet::DigitalSpeedLimitConstPtr digispeed_ptr=current_lanelet.regulatoryElementsAs<lanelet::DigitalSpeedLimit>()[0];
             double digispeed_limit=digispeed_ptr->getSpeedLimit().value();
-            if(digispeed_limit<speed_limit_) speed_limit_=digispeed_limit;
-            
+            if(digispeed_limit<speed_limit_) speed_limit_=digispeed_limit;*/
+
             // check if we left the seleted route by cross track error
             if(std::fabs(current_crosstrack_distance_) > cross_track_max_)
             {
